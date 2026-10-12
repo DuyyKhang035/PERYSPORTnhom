@@ -49,21 +49,43 @@ const Product = mongoose.models.Product || mongoose.model('Product', ProductSche
 const Banner = mongoose.models.Banner || mongoose.model('Banner', BannerSchema);
 const Post = mongoose.models.Post || mongoose.model('Post', PostSchema);
 
-async function seed() {
+async function seed({ reuseConnection = false, onlyIfEmpty = false } = {}) {
   let mongod = null;
   try {
-    console.log('Attempting to connect to MongoDB at:', MONGODB_URI);
-    
-    // Connect with 3 second timeout
-    try {
-      await mongoose.connect(MONGODB_URI, { dbName: 'pery_sport', serverSelectionTimeoutMS: 3000 });
-      console.log('Connected to target MongoDB instance!');
-    } catch (connErr) {
-      console.log('Local/Target MongoDB not available on port 27017. Starting MongoDB Memory Server...');
-      mongod = await MongoMemoryServer.create({ instance: { dbName: 'pery_sport' } });
-      const uri = mongod.getUri();
-      console.log('MongoDB Memory Server running at:', uri);
-      await mongoose.connect(uri);
+    if (reuseConnection) {
+      if (mongoose.connection.readyState !== 1) {
+        throw new Error('The existing MongoDB connection is not ready.');
+      }
+    } else {
+      console.log('Attempting to connect to MongoDB at:', MONGODB_URI);
+
+      try {
+        await mongoose.connect(MONGODB_URI, { dbName: 'pery_sport', serverSelectionTimeoutMS: 3000 });
+        console.log('Connected to target MongoDB instance!');
+      } catch (connErr) {
+        console.log('Local/Target MongoDB not available on port 27017. Starting MongoDB Memory Server...');
+        mongod = await MongoMemoryServer.create({ instance: { dbName: 'pery_sport' } });
+        const uri = mongod.getUri();
+        console.log('MongoDB Memory Server running at:', uri);
+        await mongoose.connect(uri);
+      }
+    }
+
+    if (onlyIfEmpty) {
+      const counts = await Promise.all([
+        Admin,
+        Brand,
+        Category,
+        Promotion,
+        Product,
+        Banner,
+        Post,
+      ].map((model) => model.countDocuments()));
+
+      if (counts.some((count) => count > 0)) {
+        console.log('Skipping demo seed because the database already contains data.');
+        return false;
+      }
     }
 
     // Clear existing collections
@@ -345,6 +367,8 @@ async function seed() {
     console.log('✔ Created Blog Posts.');
 
     console.log('🎉 SEED COMPLETED SUCCESSFULLY!');
+    if (reuseConnection) return true;
+
     if (mongod) {
       // keep alive for 1s then exit
       setTimeout(() => process.exit(0), 1000);
@@ -353,8 +377,16 @@ async function seed() {
     }
   } catch (err) {
     console.error('Seed error:', err);
+    if (reuseConnection) throw err;
     process.exit(1);
   }
 }
 
-seed();
+if (require.main === module) {
+  seed().catch((error) => {
+    console.error('❌ Seed failed:', error);
+    process.exit(1);
+  });
+}
+
+module.exports = { seed };
