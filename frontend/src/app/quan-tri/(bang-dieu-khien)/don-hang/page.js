@@ -320,6 +320,18 @@ export default function AdminOrdersPage() {
               </div>
             </div>
 
+            {/* Hiển thị lý do hủy đơn nếu có */}
+            {selectedOrder.cancelReason && (
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-200 text-xs text-red-700">
+                <p className="font-bold mb-1 flex items-center gap-1.5 text-red-800">
+                  <XCircle className="w-4 h-4 text-red-600" /> Lý do hủy đơn hàng:
+                </p>
+                <p className="bg-white/80 p-2.5 rounded-xl border border-red-100 font-medium text-red-900">
+                  {selectedOrder.cancelReason}
+                </p>
+              </div>
+            )}
+
             {/* Order items snapshot */}
             <div>
               <h4 className="font-bold text-slate-800 mb-2">Sản Phẩm Đã Đặt:</h4>

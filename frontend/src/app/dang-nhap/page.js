@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/tai-khoan';
@@ -34,8 +34,15 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (data.success) {
-        router.push(data.redirect || redirectTo);
-        router.refresh();
+        if (data.role === 'admin') {
+          window.location.href = '/quan-tri';
+          return;
+        }
+
+        // Khách hàng đăng nhập thành công: chuyển qua trang thanh toán luôn
+        const target = searchParams.get('redirect') || '/thanh-toan';
+        window.location.href = target;
+        return;
       } else {
         setError(data.message || 'Đăng nhập thất bại');
       }
@@ -72,6 +79,14 @@ export default function LoginPage() {
           className="rounded-2xl p-7 shadow-2xl border border-white/5"
         >
           <h2 className="text-white text-lg font-bold mb-5">Đăng nhập</h2>
+
+          {/* Thông báo yêu cầu đăng nhập khi thanh toán */}
+          {redirectTo.includes('thanh-toan') && (
+            <div className="mb-4 flex items-center gap-2.5 bg-[#F97316]/15 border border-[#F97316]/40 text-[#F97316] text-xs font-semibold px-4 py-3 rounded-xl">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Vui lòng đăng nhập tài khoản để tiến hành thanh toán đơn hàng.</span>
+            </div>
+          )}
 
           {/* Error */}
           {error && (
@@ -164,7 +179,7 @@ export default function LoginPage() {
           <p className="text-center mt-5 text-xs" style={{ color: '#AEAEAE' }}>
             Chưa có tài khoản?{' '}
             <a
-              href="/dang-ky"
+              href={`/dang-ky?redirect=${encodeURIComponent(searchParams.get('redirect') || '/thanh-toan')}`}
               className="font-semibold hover:underline"
               style={{ color: '#D17842' }}
             >
@@ -174,5 +189,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0C0F14] flex items-center justify-center text-white">Đang tải...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

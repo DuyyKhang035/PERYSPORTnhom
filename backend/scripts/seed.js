@@ -172,7 +172,7 @@ async function seed() {
       'puma-fuse-2-0-gym': '/Puma Fuse 2.0 Gym.jpg',
       'puma-rebound-v6-high': '/Puma Rebound V6 High.jpg',
       'new-balance-fresh-foam-x-1080v12': '/New Balance Fresh Foam X 1080v12.jpg',
-      'new-balance-574-core-classic': '/New Balance 574 Core Classic.jpg',
+      'new-balance-574-core-classic': '/123.jpg',
       'new-balance-minimus-tr': '/New Balance Minimus TR.jpg',
     };
 

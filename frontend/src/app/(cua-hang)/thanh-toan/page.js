@@ -7,7 +7,8 @@ import Footer from '@/components/cua-hang/bo-cuc/ChanTrang';
 import CartDrawer from '@/components/cua-hang/gio-hang/NganKeGioHang';
 import { useCart } from '@/lib/ngu-canh-gio-hang';
 import { formatVND } from '@/lib/tien-ich';
-import { ShieldCheck, Truck, CreditCard, AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, Truck, CreditCard, AlertCircle, ArrowLeft, CheckCircle2, MapPin, Plus, Edit2 } from 'lucide-react';
+import DiaChiShopeeModal from '@/components/cua-hang/DiaChiShopeeModal';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -26,6 +27,123 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Shopee-style Address states
+  const [currentUser, setCurrentUser] = useState(null);
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+
+  // Địa chỉ đang được chọn hiện tại
+  const currentAddress = addresses.find((a) => (a._id || a.id) === selectedAddressId) || addresses[0] || (formData.shippingAddress ? {
+    fullName: formData.customerName,
+    phone: formData.customerPhone,
+    fullAddress: formData.shippingAddress,
+    isDefault: true,
+    label: 'Nhà riêng',
+  } : null);
+
+  // Chọn địa chỉ
+  const handleSelectAddress = (addr) => {
+    setSelectedAddressId(addr._id || addr.id);
+    setFormData((prev) => ({
+      ...prev,
+      customerName: addr.fullName,
+      customerPhone: addr.phone,
+      shippingAddress: addr.fullAddress,
+    }));
+  };
+
+  // Lưu danh sách địa chỉ (đồng bộ MongoDB + localStorage)
+  const handleSaveAddresses = async (newList) => {
+    setAddresses(newList);
+    try {
+      localStorage.setItem('pery_saved_addresses', JSON.stringify(newList));
+    } catch (e) {
+      // ignore
+    }
+
+    const defaultAddr = newList.find((a) => a.isDefault) || newList[0];
+    if (defaultAddr) {
+      handleSelectAddress(defaultAddr);
+    }
+
+    try {
+      await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: newList }),
+      });
+    } catch (err) {
+      console.error('Lỗi khi đồng bộ địa chỉ với server:', err);
+    }
+  };
+
+  // Prefill user data & load addresses on mount
+  useEffect(() => {
+    async function loadUserInfo() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+
+          let addrList = Array.isArray(data.user.addresses) ? data.user.addresses : [];
+
+          // Lấy thêm từ localStorage nếu có
+          if (addrList.length === 0) {
+            try {
+              const localSaved = localStorage.getItem('pery_saved_addresses');
+              if (localSaved) {
+                addrList = JSON.parse(localSaved);
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          // Fallback: nếu chưa có danh sách nhưng có trường address mặc định
+          if (addrList.length === 0 && data.user.address) {
+            addrList = [{
+              _id: 'default_addr',
+              id: 'default_addr',
+              fullName: data.user.fullName || '',
+              phone: data.user.phone || '',
+              detail: data.user.address,
+              fullAddress: data.user.address,
+              label: 'Nhà riêng',
+              isDefault: true,
+            }];
+          }
+
+          setAddresses(addrList);
+
+          const defaultAddr = addrList.find((a) => a.isDefault) || addrList[0];
+          if (defaultAddr) {
+            setSelectedAddressId(defaultAddr._id || defaultAddr.id);
+            setFormData((prev) => ({
+              ...prev,
+              customerName: defaultAddr.fullName || prev.customerName,
+              customerPhone: defaultAddr.phone || prev.customerPhone,
+              shippingAddress: defaultAddr.fullAddress || prev.shippingAddress,
+              customerEmail: data.user.email || prev.customerEmail,
+            }));
+          } else {
+            setFormData((prev) => ({
+              ...prev,
+              customerName: data.user.fullName || prev.customerName,
+              customerPhone: data.user.phone || prev.customerPhone,
+              shippingAddress: data.user.address || prev.shippingAddress,
+              customerEmail: data.user.email || prev.customerEmail,
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('Error loading user info:', err);
+      }
+    }
+    loadUserInfo();
+  }, []);
 
   // Validate cart with server on load
   useEffect(() => {
@@ -138,80 +256,116 @@ export default function CheckoutPage() {
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           
-          {/* Form Shipping Info */}
+          {/* Form Shipping Info - Phong cách Shopee */}
           <div className="lg:col-span-7 space-y-6">
-            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200 space-y-4">
-              <h2 className="text-base font-black text-[#10243A] pb-3 border-b border-slate-200 flex items-center gap-2">
-                1. Thông Tin Giao Hàng
-              </h2>
+            
+            {/* Shopee-style Địa Chỉ Nhận Hàng Card */}
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
+              {/* Viền sọc màu Shopee kinh điển */}
+              <div 
+                className="h-1.5 w-full"
+                style={{
+                  backgroundImage: 'repeating-linear-gradient(45deg, #F97316 0, #F97316 25px, #10243A 25px, #10243A 50px)'
+                }}
+              />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Họ và Tên <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder=""
-                    value={formData.customerName}
-                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-                    className="w-full bg-white border border-slate-200 text-xs rounded-xl p-3 focus:outline-none focus:border-[#10243A]"
-                  />
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2 text-[#F97316] font-black text-base">
+                    <MapPin className="w-5 h-5 shrink-0" />
+                    <span>Địa Chỉ Nhận Hàng</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#F97316] hover:text-[#EA580C] bg-orange-50 hover:bg-orange-100 border border-orange-200 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-xs"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    {currentAddress ? 'Thay đổi' : 'Thêm địa chỉ'}
+                  </button>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">
-                    Số Điện Thoại <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder=""
-                    value={formData.customerPhone}
-                    onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-                    className="w-full bg-white border border-slate-200 text-xs rounded-xl p-3 focus:outline-none focus:border-[#10243A]"
-                  />
+                {currentAddress ? (
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 text-xs bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-extrabold text-[#10243A] text-sm">
+                          {formData.customerName || currentAddress.fullName}
+                        </span>
+                        <span className="text-slate-300 font-bold">|</span>
+                        <span className="font-bold text-slate-700">
+                          {formData.customerPhone || currentAddress.phone}
+                        </span>
+                        {currentAddress.isDefault && (
+                          <span className="text-[10px] font-bold text-[#F97316] bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-md">
+                            Mặc định
+                          </span>
+                        )}
+                        {currentAddress.label && (
+                          <span className="text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                            {currentAddress.label}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-600 text-xs leading-relaxed break-words font-medium">
+                        {formData.shippingAddress || currentAddress.fullAddress}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressModalOpen(true)}
+                      className="text-xs font-bold text-[#F97316] hover:underline shrink-0 sm:pt-1 cursor-pointer"
+                    >
+                      Thiết lập lại
+                    </button>
+                  </div>
+                ) : (
+                  /* Nút Dấu cộng (+) to để thêm địa chỉ giao hàng chuẩn Shopee */
+                  <div className="py-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressModalOpen(true)}
+                      className="w-full py-4 px-4 border-2 border-dashed border-[#F97316] hover:bg-orange-50/50 text-[#F97316] font-bold text-xs rounded-2xl flex items-center justify-center gap-2.5 transition-all cursor-pointer group shadow-xs hover:shadow"
+                    >
+                      <div className="w-6 h-6 rounded-full bg-[#F97316] text-white flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Plus className="w-4 h-4 stroke-[3]" />
+                      </div>
+                      <span>+ Thêm Địa Chỉ Nhận Hàng Mới</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Email và Ghi chú đơn hàng */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Email nhận hóa đơn & cập nhật đơn <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="example@gmail.com"
+                      value={formData.customerEmail}
+                      onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-3 focus:outline-none focus:border-[#F97316] focus:bg-white transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">
+                      Ghi Chú Đơn Hàng (Tùy chọn)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Giao giờ hành chính, gọi trước khi giao..."
+                      value={formData.note}
+                      onChange={(e) => setFormData({ ...formData, note: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 text-xs rounded-xl p-3 focus:outline-none focus:border-[#F97316] focus:bg-white transition-all"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Địa Chỉ Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  placeholder=""
-                  value={formData.customerEmail}
-                  onChange={(e) => setFormData({ ...formData, customerEmail: e.target.value })}
-                  className="w-full bg-white border border-slate-200 text-xs rounded-xl p-3 focus:outline-none focus:border-[#10243A]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  Địa Chỉ Nhận Hàng Chân Thực <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố..."
-                  value={formData.shippingAddress}
-                  onChange={(e) => setFormData({ ...formData, shippingAddress: e.target.value })}
-                  className="w-full bg-white border border-slate-200 text-xs rounded-xl p-3 focus:outline-none focus:border-[#10243A]"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">Ghi Chú Đơn Hàng (Tùy chọn)</label>
-                <input
-                  type="text"
-                  placeholder="Giao giờ hành chính, gọi trước khi giao..."
-                  value={formData.note}
-                  onChange={(e) => setFormData({ ...formData, note: e.target.value })}
-                  className="w-full bg-white border border-slate-200 text-xs rounded-xl p-3 focus:outline-none"
-                />
               </div>
             </div>
 
@@ -336,6 +490,17 @@ export default function CheckoutPage() {
       </main>
 
       <Footer />
+
+      {/* Modal Quản lý & Chọn Địa chỉ giao hàng kiểu Shopee */}
+      <DiaChiShopeeModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        user={currentUser}
+        addresses={addresses}
+        selectedAddressId={selectedAddressId}
+        onSelectAddress={handleSelectAddress}
+        onSaveAddresses={handleSaveAddresses}
+      />
     </div>
   );
 }

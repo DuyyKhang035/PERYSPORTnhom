@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Pencil } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, ShieldCheck, Pencil, Loader2 } from 'lucide-react';
 import { useCart } from '@/lib/ngu-canh-gio-hang';
 import { formatVND } from '@/lib/tien-ich';
+import YeuCauDangNhapModal from '../YeuCauDangNhapModal';
 
 /* ─────────────────────────────────────────
    Modal chỉnh sửa biến thể
@@ -177,11 +179,33 @@ function VariantEditModal({ item, onClose, onUpdate }) {
    CartDrawer chính
 ───────────────────────────────────────── */
 export default function CartDrawer() {
+  const router = useRouter();
   const { cartItems, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart, changeVariant, cartSubtotal, cartCount } = useCart();
 
   // State cho modal: lưu item đang được chỉnh sửa (kèm _variants từ API)
   const [editingItem, setEditingItem] = useState(null);
   const [editError,   setEditError]   = useState('');
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
+
+  const handleCheckoutClick = async (e) => {
+    e.preventDefault();
+    setIsCheckingAuth(true);
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (data.success && data.user) {
+        setIsCartOpen(false);
+        router.push('/thanh-toan');
+      } else {
+        setShowLoginModal(true);
+      }
+    } catch {
+      setShowLoginModal(true);
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
 
   if (!isCartOpen) return null;
 
@@ -365,13 +389,22 @@ export default function CartDrawer() {
                   >
                     Xem Giỏ Hàng
                   </Link>
-                  <Link
-                    href="/thanh-toan"
-                    onClick={() => setIsCartOpen(false)}
-                    className="flex-2 text-center py-3 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2"
+                  <button
+                    type="button"
+                    onClick={handleCheckoutClick}
+                    disabled={isCheckingAuth}
+                    className="flex-2 text-center py-3 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
                   >
-                    Thanh Toán Ngay <ArrowRight className="w-4 h-4" />
-                  </Link>
+                    {isCheckingAuth ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Đang kiểm tra...
+                      </>
+                    ) : (
+                      <>
+                        Thanh Toán Ngay <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
                 </div>
 
                 <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">
@@ -399,6 +432,12 @@ export default function CartDrawer() {
           {editError}
         </div>
       )}
+      {/* Modal Cảnh báo yêu cầu đăng nhập */}
+      <YeuCauDangNhapModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectUrl="/thanh-toan"
+      />
     </>
   );
 }

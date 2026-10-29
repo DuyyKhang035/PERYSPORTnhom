@@ -8,8 +8,8 @@ import Footer from '@/components/cua-hang/bo-cuc/ChanTrang';
 import CartDrawer from '@/components/cua-hang/gio-hang/NganKeGioHang';
 import ProductCard from '@/components/cua-hang/san-pham/TheSanPham';
 import { useCart } from '@/lib/ngu-canh-gio-hang';
-import { formatVND } from '@/lib/tien-ich';
 import { ShoppingBag, ShieldCheck, Truck, RotateCcw, Flame, Check, AlertTriangle, ArrowRight } from 'lucide-react';
+import YeuCauDangNhapModal from '@/components/cua-hang/YeuCauDangNhapModal';
 
 export default function ProductDetailPage({ params }) {
   const unwrappedParams = use(params);
@@ -20,6 +20,7 @@ export default function ProductDetailPage({ params }) {
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Variant selection state
   const [selectedColor, setSelectedColor] = useState('');
@@ -122,7 +123,7 @@ export default function ProductDetailPage({ params }) {
     }
   };
 
-  const handleAddToCart = (isBuyNow = false) => {
+  const handleAddToCart = async (isBuyNow = false) => {
     if (!currentVariant) {
       setErrorMsg('Vui lòng chọn Màu sắc và Size hợp lệ');
       return;
@@ -140,7 +141,17 @@ export default function ProductDetailPage({ params }) {
       addToCart(product, selectedColor, selectedSize, quantity);
       setErrorMsg('');
       if (isBuyNow) {
-        router.push('/thanh-toan');
+        try {
+          const res = await fetch('/api/auth/me');
+          const data = await res.json();
+          if (data.success && data.user) {
+            router.push('/thanh-toan');
+          } else {
+            setShowLoginModal(true);
+          }
+        } catch {
+          setShowLoginModal(true);
+        }
       }
     } catch (e) {
       setErrorMsg(e.message);
@@ -393,6 +404,13 @@ export default function ProductDetailPage({ params }) {
       </main>
 
       <Footer />
+
+      {/* Modal Cảnh báo yêu cầu đăng nhập */}
+      <YeuCauDangNhapModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectUrl="/thanh-toan"
+      />
     </div>
   );
 }

@@ -37,11 +37,19 @@ export async function PUT(req) {
     const body = await req.json();
 
     // Chỉ cho phép cập nhật các trường an toàn — không cho đổi role, email, password ở đây
-    const allowedFields = ['fullName', 'phone', 'dateOfBirth', 'gender', 'address', 'avatar'];
+    const allowedFields = ['fullName', 'phone', 'dateOfBirth', 'gender', 'address', 'avatar', 'addresses'];
     const updateData = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updateData[field] = body[field];
+      }
+    }
+
+    // Đồng bộ địa chỉ mặc định nếu có mảng addresses
+    if (Array.isArray(body.addresses) && body.addresses.length > 0) {
+      const defaultAddr = body.addresses.find((a) => a.isDefault) || body.addresses[0];
+      if (defaultAddr && defaultAddr.fullAddress) {
+        updateData.address = defaultAddr.fullAddress;
       }
     }
 

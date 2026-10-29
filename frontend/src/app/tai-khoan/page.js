@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   User, Mail, Phone, MapPin, Calendar, Edit3, Save, X,
-  Lock, ShoppingBag, Store, LogOut, CheckCircle, AlertCircle, Loader2, Shield, Star,
+  Lock, ShoppingBag, Store, LogOut, CheckCircle, AlertCircle, Loader2, Shield, Star, XCircle,
 } from 'lucide-react';
 import { ORDER_STATUSES, normalizeOrderStatus } from '@/lib/trang-thai-don-hang';
 
@@ -70,6 +70,58 @@ export default function ProfilePage() {
   const [orderTab, setOrderTab] = useState('pending');
   const [reviewing, setReviewing] = useState(null); // { orderId, productId, productName }
   const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
+
+  // State cho việc Hủy đơn hàng
+  const [cancellingOrder, setCancellingOrder] = useState(null);
+  const [selectedReasonTemplate, setSelectedReasonTemplate] = useState('Muốn thay đổi địa chỉ nhận hàng');
+  const [cancelReason, setCancelReason] = useState('Muốn thay đổi địa chỉ nhận hàng');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleOpenCancelModal = (order) => {
+    setCancellingOrder(order);
+    setSelectedReasonTemplate('Muốn thay đổi địa chỉ nhận hàng');
+    setCancelReason('Muốn thay đổi địa chỉ nhận hàng');
+  };
+
+  const handleConfirmCancelOrder = async () => {
+    if (!cancellingOrder || !cancelReason.trim()) {
+      showToast('Vui lòng nhập lý do hủy đơn hàng', 'error');
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      const res = await fetch('/api/auth/orders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: cancellingOrder._id,
+          reason: cancelReason.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast('Hủy đơn hàng thành công! Đã chuyển sang mục Đã Hủy.');
+        setOrders((prev) =>
+          prev.map((ord) =>
+            ord._id === cancellingOrder._id
+              ? { ...ord, orderStatus: 'cancelled', cancelReason: cancelReason.trim() }
+              : ord
+          )
+        );
+        setCancellingOrder(null);
+        setCancelReason('');
+        setOrderTab('cancelled');
+      } else {
+        showToast(data.message || 'Hủy đơn hàng thất bại', 'error');
+      }
+    } catch {
+      showToast('Lỗi kết nối khi hủy đơn hàng', 'error');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   const showToast = useCallback((msg, type = 'success') => {
     setToast({ show: true, msg, type });
@@ -516,6 +568,26 @@ export default function ProfilePage() {
                           })}
                         </div>
 
+                        {/* Hiển thị lý do hủy nếu đơn đã hủy */}
+                        {o.orderStatus === 'cancelled' && o.cancelReason && (
+                          <div className="mt-3 pt-2.5 border-t border-white/5 flex items-start gap-1.5 text-xs text-red-400 bg-red-500/10 p-2.5 rounded-lg">
+                            <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span><strong>Lý do hủy:</strong> {o.cancelReason}</span>
+                          </div>
+                        )}
+
+                        {/* Nút Hủy Đơn Hàng đối với đơn hàng đang Chờ xác nhận */}
+                        {normalizeOrderStatus(o.orderStatus) === 'pending' && (
+                          <div className="mt-3 pt-2.5 border-t border-white/5 flex justify-end">
+                            <button
+                              onClick={() => handleOpenCancelModal(o)}
+                              className="text-xs font-bold px-3.5 py-1.5 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/15 hover:border-red-500 transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <XCircle className="w-3.5 h-3.5" /> Hủy Đơn Hàng
+                            </button>
+                          </div>
+                        )}
+
                       </div>
                     ))}
                   </div>
@@ -558,6 +630,99 @@ export default function ProfilePage() {
           )}
         </main>
       </div>
+
+      {/* Modal Hủy Đơn Hàng */}
+      {cancellingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#141921] border border-white/10 rounded-2xl max-w-md w-full p-6 text-white shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+              <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>Hủy Đơn Hàng: {cancellingOrder.orderCode}</span>
+              </div>
+              <button
+                onClick={() => { setCancellingOrder(null); setCancelReason(''); }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 mb-3">
+              Vui lòng chọn hoặc nhập lý do bạn muốn hủy đơn hàng này:
+            </p>
+
+            {/* Danh sách lý do mẫu chuẩn Shopee */}
+            <div className="space-y-2 mb-4">
+              {[
+                'Muốn thay đổi địa chỉ nhận hàng',
+                'Muốn thay đổi sản phẩm (màu sắc, kích cỡ, số lượng...)',
+                'Tìm thấy giá tốt hơn ở nơi khác',
+                'Thay đổi ý định, không còn nhu cầu mua',
+                'Lý do khác',
+              ].map((r) => (
+                <label
+                  key={r}
+                  className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                    selectedReasonTemplate === r
+                      ? 'border-[#D17842] bg-[#D17842]/10 text-white font-semibold'
+                      : 'border-white/5 bg-[#0C0F14] text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cancelReasonTemplate"
+                    checked={selectedReasonTemplate === r}
+                    onChange={() => {
+                      setSelectedReasonTemplate(r);
+                      if (r !== 'Lý do khác') {
+                        setCancelReason(r);
+                      } else {
+                        setCancelReason('');
+                      }
+                    }}
+                    className="accent-[#D17842]"
+                  />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Ô nhập chi tiết lý do */}
+            <div className="mb-4">
+              <label className="text-[11px] text-slate-400 block mb-1">
+                Chi tiết lý do hủy <span className="text-red-400">*</span>:
+              </label>
+              <textarea
+                rows={3}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Nhập chi tiết lý do hủy đơn của bạn..."
+                className="w-full text-xs text-white rounded-xl p-3 bg-[#0C0F14] border border-white/10 focus:outline-none focus:border-[#D17842]"
+              />
+            </div>
+
+            <div className="flex gap-2.5 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => { setCancellingOrder(null); setCancelReason(''); }}
+                className="flex-1 py-2.5 bg-[#0C0F14] hover:bg-white/5 text-slate-300 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+              >
+                Không Hủy
+              </button>
+              <button
+                type="button"
+                disabled={!cancelReason.trim() || isCancelling}
+                onClick={handleConfirmCancelOrder}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {isCancelling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                Xác Nhận Hủy Đơn
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

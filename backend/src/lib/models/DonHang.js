@@ -82,6 +82,14 @@ const OrderSchema = new mongoose.Schema(
       enum: ['pending', 'confirmed', 'ready_to_ship', 'shipping', 'delivered', 'completed', 'cancelled'],
       default: 'pending',
     },
+    cancelReason: {
+      type: String,
+      default: '',
+    },
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
     stockRestored: {
       type: Boolean,
       default: false,

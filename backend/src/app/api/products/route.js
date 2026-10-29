@@ -112,15 +112,20 @@ export async function GET(req) {
 
     const total = await Product.countDocuments(filter);
     const skip = (page - 1) * limit;
+    const sortByDiscount = hotDeal === 'true' || sortParam === 'discount-desc';
 
-    const rawProducts = await Product.find(filter)
+    let productsQuery = Product.find(filter)
       .populate('brand', 'name slug logo')
       .populate('categories', 'name slug')
       .populate('promotion')
       .sort(sortObj)
-      .skip(skip)
-      .limit(limit)
       .lean();
+
+    if (!sortByDiscount) {
+      productsQuery = productsQuery.skip(skip).limit(limit);
+    }
+
+    const rawProducts = await productsQuery;
 
     // Process price and hot deal calculation for each product
     const now = new Date();
@@ -157,13 +162,14 @@ export async function GET(req) {
     });
 
     // Nếu là hotDeal hoặc sort=discount-desc: sắp xếp lại theo % giảm giá từ CAO xuống THẤP
-    if (hotDeal === 'true' || sortParam === 'discount-desc') {
+    if (sortByDiscount) {
       products.sort((a, b) => b.discountPercentage - a.discountPercentage);
     }
+    const paginatedProducts = sortByDiscount ? products.slice(skip, skip + limit) : products;
 
     return NextResponse.json({
       success: true,
-      data: products,
+      data: paginatedProducts,
       pagination: {
         total,
         page,

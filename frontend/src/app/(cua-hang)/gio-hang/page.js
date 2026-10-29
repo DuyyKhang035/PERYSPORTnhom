@@ -1,16 +1,39 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Header from '@/components/cua-hang/bo-cuc/DauTrang';
 import Footer from '@/components/cua-hang/bo-cuc/ChanTrang';
 import CartDrawer from '@/components/cua-hang/gio-hang/NganKeGioHang';
 import { useCart } from '@/lib/ngu-canh-gio-hang';
 import { formatVND } from '@/lib/tien-ich';
-import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, ShieldCheck, Truck } from 'lucide-react';
+import { ShoppingBag, Trash2, Plus, Minus, ArrowRight, ShieldCheck, Truck, Loader2 } from 'lucide-react';
+import YeuCauDangNhapModal from '@/components/cua-hang/YeuCauDangNhapModal';
 
 export default function CartPage() {
+  const router = useRouter();
   const { cartItems, updateQuantity, removeFromCart, cartSubtotal, cartCount, clearCart } = useCart();
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(false);
+
+  const handleCheckoutClick = async (e) => {
+    e.preventDefault();
+    setIsCheckingAuth(true);
+    try {
+      const res = await fetch('/api/auth/me');
+      const data = await res.json();
+      if (data.success && data.user) {
+        router.push('/thanh-toan');
+      } else {
+        setShowLoginModal(true);
+      }
+    } catch {
+      setShowLoginModal(true);
+    } finally {
+      setIsCheckingAuth(false);
+    }
+  };
 
   const freeShippingThreshold = 1000000;
   const isFreeShipping = cartSubtotal >= freeShippingThreshold;
@@ -140,12 +163,22 @@ export default function CartPage() {
                   <span className="text-xl font-black text-[#F97316]">{formatVND(cartSubtotal)}</span>
                 </div>
 
-                <Link
-                  href="/thanh-toan"
-                  className="w-full py-4 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-extrabold uppercase tracking-wider rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2"
+                <button
+                  type="button"
+                  onClick={handleCheckoutClick}
+                  disabled={isCheckingAuth}
+                  className="w-full py-4 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-extrabold uppercase tracking-wider rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
                 >
-                  Tiến Hành Thanh Toán <ArrowRight className="w-4 h-4" />
-                </Link>
+                  {isCheckingAuth ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" /> Đang kiểm tra...
+                    </>
+                  ) : (
+                    <>
+                      Tiến Hành Thanh Toán <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
 
                 <div className="pt-2 text-[11px] text-slate-400 space-y-2">
                   <p className="flex items-center gap-1.5">
@@ -165,6 +198,13 @@ export default function CartPage() {
       </main>
 
       <Footer />
+
+      {/* Modal Cảnh báo yêu cầu đăng nhập */}
+      <YeuCauDangNhapModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        redirectUrl="/thanh-toan"
+      />
     </div>
   );
 }

@@ -134,8 +134,15 @@ function LookupContent() {
           </div>
 
           {normalizeOrderStatus(order.orderStatus) === 'cancelled' ? (
-            <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700">
-              Đơn hàng đã bị hủy.
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-semibold text-red-700 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertCircle className="w-4 h-4 text-red-600" /> Đơn hàng đã bị hủy.
+              </div>
+              {order.cancelReason && (
+                <div className="text-xs font-normal text-red-800 bg-white/70 p-2.5 rounded-xl border border-red-100 mt-2">
+                  <span className="font-semibold text-red-900">Lý do hủy:</span> {order.cancelReason}
+                </div>
+              )}
             </div>
           ) : (
             <ol className="grid grid-cols-2 gap-3 sm:grid-cols-5">

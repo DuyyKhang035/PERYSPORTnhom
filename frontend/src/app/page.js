@@ -54,7 +54,7 @@ export default async function HomePage() {
           <section className="py-14 bg-gradient-to-b from-[#10243A] to-[#0A1828] text-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex items-center justify-between pb-6 border-b border-slate-800 mb-8">
-                <h2 className="text-2xl md:text-3xl font-black text-white">Siêu Sale Hot Deals</h2>
+                <h2 className="text-2xl md:text-3xl font-black text-white">Hot Deals</h2>
                 <Link
                   href="/san-pham"
                   className="inline-flex items-center gap-1 bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-bold px-5 py-2.5 rounded-full transition-colors"
@@ -78,7 +78,7 @@ export default async function HomePage() {
             <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
               <div>
                 <span className="text-xs font-bold text-[#F97316] uppercase tracking-widest block mb-1">
-                  BÁN CHẠY NHẤT
+                  PERY SPORT
                 </span>
                 <h2 className="text-2xl md:text-3xl font-black text-[#10243A]">Sản Phẩm Đang Hot</h2>
               </div>
@@ -158,7 +158,7 @@ export default async function HomePage() {
             </span>
             <h2 className="text-2xl md:text-3xl font-black text-white">Nhận Ngay Voucher Giảm 100K Cho Đầu Tiên</h2>
             <p className="text-xs md:text-sm text-slate-300 max-w-lg mx-auto">
-              Đăng ký email để không bỏ lỡ các đợt Siêu Sale Hot Deals và bộ sưu tập giày thể thao mới nhất từ PERY SPORT.
+              Đăng ký email để không bỏ lỡ các đợt Hot Deals và bộ sưu tập giày thể thao mới nhất từ PERY SPORT.
             </p>
 
             <NewsletterForm />

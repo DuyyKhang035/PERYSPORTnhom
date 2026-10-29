@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || '/thanh-toan';
   const [form, setForm] = useState({ fullName: '', email: '', password: '', phone: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -29,7 +31,7 @@ export default function RegisterPage() {
       const data = await res.json();
       if (data.success) {
         setSuccess(true);
-        setTimeout(() => router.push('/dang-nhap'), 2000);
+        setTimeout(() => router.push(`/dang-nhap?redirect=${encodeURIComponent(redirectTarget)}`), 1500);
       } else {
         setError(data.message || 'Đăng ký thất bại');
       }
@@ -112,10 +114,25 @@ export default function RegisterPage() {
 
           <p className="text-center mt-5 text-xs" style={{ color: '#AEAEAE' }}>
             Đã có tài khoản?{' '}
-            <a href="/dang-nhap" className="font-semibold hover:underline" style={{ color: '#D17842' }}>Đăng nhập</a>
+            <a 
+              href={`/dang-nhap?redirect=${encodeURIComponent(redirectTarget)}`} 
+              className="font-semibold hover:underline" 
+              style={{ color: '#D17842' }}
+            >
+              Đăng nhập
+            </a>
           </p>
         </div>
       </div>
     </div>
   );
 }
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0C0F14] flex items-center justify-center text-white">Đang tải...</div>}>
+      <RegisterForm />
+    </Suspense>
+  );
+}
+

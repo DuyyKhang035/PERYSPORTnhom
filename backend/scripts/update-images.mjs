@@ -1,11 +1,7 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-if (!MONGODB_URI) {
-  console.error('❌ Thiếu MONGODB_URI trong file .env');
-  process.exit(1);
-}
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/pery_sport';
 
 const ProductSchema = new mongoose.Schema({
   name: String,
@@ -42,7 +38,7 @@ const IMAGE_MAP = {
   'puma-rebound-v6-high':           '/Puma Rebound V6 High.jpg',
 
   'new-balance-fresh-foam-x-1080v12': '/New Balance Fresh Foam X 1080v12.jpg',
-  'new-balance-574-core-classic':   '/New Balance 574 Core Classic.jpg',
+  'new-balance-574-core-classic':   '/123.jpg',
   'new-balance-minimus-tr':         '/New Balance Minimus TR.jpg',
 };
 

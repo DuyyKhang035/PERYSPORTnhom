@@ -37,6 +37,19 @@ const UserSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    addresses: [
+      {
+        fullName: { type: String, default: '' },
+        phone: { type: String, default: '' },
+        province: { type: String, default: '' },
+        district: { type: String, default: '' },
+        ward: { type: String, default: '' },
+        detail: { type: String, default: '' },
+        fullAddress: { type: String, default: '' },
+        label: { type: String, default: 'Nhà riêng' }, // 'Nhà riêng' | 'Văn phòng'
+        isDefault: { type: Boolean, default: false },
+      },
+    ],
     avatar: {
       type: String,
       default: '',
