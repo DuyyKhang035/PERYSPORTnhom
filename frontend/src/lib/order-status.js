@@ -16,7 +16,7 @@ export function getNextOrderStatusKeys(status) {
   const nextStatuses = {
     pending: ['ready_to_ship', 'cancelled'],
     ready_to_ship: ['shipping', 'cancelled'],
-    shipping: ['delivered'],
+    shipping: ['delivered', 'cancelled'],
     delivered: ['completed'],
     completed: [],
     cancelled: [],

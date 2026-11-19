@@ -22,10 +22,22 @@ export function slugify(str) {
   return str.trim();
 }
 
-export function generateOrderCode() {
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const randomStr = Math.floor(1000 + Math.random() * 9000);
-  return `PS-${dateStr}-${randomStr}`;
+export function generateOrderCode(productName = 'PERY', sequence = 1, date = new Date()) {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const dateStr = `${day}${month}${year}`;
+
+  const seqStr = String(sequence || 1).padStart(3, '0');
+
+  const words = slugify(productName || 'PERY')
+    .toUpperCase()
+    .split('-')
+    .filter(Boolean);
+  const namePart = words.slice(0, 4).join('-') || 'PERY';
+
+  return `${namePart}-${seqStr}-${dateStr}`;
 }
 
 export function calculateDiscount(price, promotion) {

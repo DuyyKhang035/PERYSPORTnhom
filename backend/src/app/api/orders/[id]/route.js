@@ -9,7 +9,7 @@ const NEXT_ORDER_STATUSES = {
   pending: ['ready_to_ship', 'cancelled'],
   confirmed: ['shipping', 'cancelled'],
   ready_to_ship: ['shipping', 'cancelled'],
-  shipping: ['delivered'],
+  shipping: ['delivered', 'cancelled'],
   delivered: ['completed'],
   completed: [],
   cancelled: [],
@@ -54,14 +54,6 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ success: false, message: 'Không tìm thấy đơn hàng' }, { status: 404 });
     }
 
-    if (
-      body.orderStatus &&
-      body.orderStatus !== order.orderStatus &&
-      !NEXT_ORDER_STATUSES[order.orderStatus]?.includes(body.orderStatus)
-    ) {
-      return NextResponse.json({ success: false, message: 'Không thể chuyển đơn hàng sang trạng thái này theo tiến trình hiện tại' }, { status: 400 });
-    }
-
     // Check if status changes to 'cancelled'
     if (body.orderStatus === 'cancelled' && order.orderStatus !== 'cancelled' && !order.stockRestored) {
       // Restore stock and decrement soldCount
@@ -77,6 +69,21 @@ export async function PUT(req, { params }) {
         );
       }
       order.stockRestored = true;
+    } else if (body.orderStatus && body.orderStatus !== 'cancelled' && order.orderStatus === 'cancelled' && order.stockRestored) {
+      // Re-deduct stock and increment soldCount if un-cancelled
+      for (const item of order.items) {
+        await Product.updateOne(
+          { _id: item.product, 'variants.sku': item.sku },
+          {
+            $inc: {
+              'variants.$.stock': -item.quantity,
+              soldCount: item.quantity,
+            },
+          }
+        );
+      }
+      order.stockRestored = false;
+      order.cancelReason = '';
     }
 
     if (body.orderStatus) order.orderStatus = body.orderStatus;

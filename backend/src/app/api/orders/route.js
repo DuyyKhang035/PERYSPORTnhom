@@ -48,7 +48,7 @@ export async function GET(req) {
     const skip = (page - 1) * limit;
 
     const orders = await Order.find(filter)
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -178,7 +178,23 @@ export async function POST(req) {
       });
     }
 
-    const orderCode = generateOrderCode();
+    // Tạo mã đơn hàng gồm: Tên sản phẩm + Số thứ tự đặt hàng + Ngày tháng đặt hàng
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const todayOrdersCount = await Order.countDocuments({
+      createdAt: { $gte: startOfDay, $lt: endOfDay },
+    });
+    let sequence = todayOrdersCount + 1;
+    const mainProductName = orderItems[0]?.productName || 'PERY';
+    let orderCode = generateOrderCode(mainProductName, sequence, now);
+
+    // Đảm bảo mã đơn hàng là duy nhất
+    let exists = await Order.findOne({ orderCode });
+    while (exists) {
+      sequence += 1;
+      orderCode = generateOrderCode(mainProductName, sequence, now);
+      exists = await Order.findOne({ orderCode });
+    }
     const shippingFee = 0;
     const totalAmount = subtotal - totalDiscount + shippingFee;
 

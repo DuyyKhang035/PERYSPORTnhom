@@ -6,11 +6,11 @@ import {
   User, Mail, Phone, MapPin, Calendar, Edit3, Save, X,
   Lock, ShoppingBag, Store, LogOut, CheckCircle, AlertCircle, Loader2, Shield, Star, XCircle, CreditCard,
 } from 'lucide-react';
-import { ORDER_STATUSES, normalizeOrderStatus } from '@/lib/order-status';
+import { ORDER_STATUSES, normalizeOrderStatus, getOrderStatus } from '@/lib/order-status';
 
 const GENDER_LABEL = { male: 'Nam', female: 'Nữ', other: 'Khác', '': 'Chưa cập nhật' };
-const ORDER_STATUS = Object.fromEntries(ORDER_STATUSES.map(({ key, label }) => [key, label]));
-const ORDER_TABS = ORDER_STATUSES.map(({ key }) => key);
+const ORDER_STATUS = { all: 'Tất cả', ...Object.fromEntries(ORDER_STATUSES.map(({ key, label }) => [key, label])) };
+const ORDER_TABS = ['all', ...ORDER_STATUSES.map(({ key }) => key)];
 const ROLE_LABEL = { user: 'Khách hàng', admin: 'Quản trị viên' };
 
 const CARD = { backgroundColor: '#141921' };
@@ -67,7 +67,7 @@ export default function ProfilePage() {
   const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [orderTab, setOrderTab] = useState('pending');
+  const [orderTab, setOrderTab] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [reviewing, setReviewing] = useState(null); // { orderId, productId, productName }
   const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
@@ -277,7 +277,7 @@ export default function ProfilePage() {
     { key: 'password', label: 'Đổi mật khẩu', icon: Lock },
   ];
   const visibleOrders = orders.filter((o) => {
-    const matchStatus = normalizeOrderStatus(o.orderStatus) === orderTab;
+    const matchStatus = orderTab === 'all' ? true : normalizeOrderStatus(o.orderStatus) === orderTab;
     const matchPayment =
       paymentFilter === 'all'
         ? true
@@ -571,6 +571,16 @@ export default function ProfilePage() {
                               {Number(o.totalAmount).toLocaleString('vi-VN')}đ
                             </p>
                             <div className="flex items-center justify-end gap-1.5 mt-1.5 flex-wrap">
+                              {/* Trạng thái đơn hàng (Đồng bộ với Admin) */}
+                              {(() => {
+                                const st = getOrderStatus(o.orderStatus);
+                                if (!st) return null;
+                                return (
+                                  <span className={`${st.badgeClass} text-[10px] font-bold px-2 py-0.5 rounded-md`}>
+                                    {st.label}
+                                  </span>
+                                );
+                              })()}
                               {o.paymentMethod && (
                                 <span
                                   className="text-[10px] font-semibold px-2 py-0.5 rounded-md"
@@ -601,10 +611,24 @@ export default function ProfilePage() {
                           {o.items.map((it) => {
                             const done = isReviewed(o._id, it.product);
                             return (
-                              <div key={`${it.product}-${it.sku}`} className="flex items-center justify-between gap-3">
-                                <p className="text-xs text-white min-w-0 truncate">
-                                  {it.productName} <span style={{ color: '#AEAEAE' }}>· {it.color}/{it.size} · x{it.quantity}</span>
-                                </p>
+                              <div key={`${it.product}-${it.sku}`} className="flex items-center justify-between gap-3 p-2 rounded-xl bg-white/5 border border-white/5">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  {it.image && (
+                                    <img
+                                      src={it.image}
+                                      alt={it.productName}
+                                      className="w-11 h-11 object-cover rounded-lg border border-white/10 shrink-0"
+                                    />
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-xs text-white font-bold truncate">
+                                      {it.productName}
+                                    </p>
+                                    <p className="text-[11px]" style={{ color: '#AEAEAE' }}>
+                                      Màu: <span className="text-white font-medium">{it.color}</span> · Size: <span className="text-white font-medium">{it.size}</span> · SL: <span className="text-white font-bold">x{it.quantity}</span>
+                                    </p>
+                                  </div>
+                                </div>
                                 {o.orderStatus === 'completed' && (
                                   done ? (
                                     <span className="text-[11px] font-semibold shrink-0" style={{ color: '#AEAEAE' }}>Đã đánh giá</span>
@@ -614,7 +638,7 @@ export default function ProfilePage() {
                                         setReviewing({ orderId: o._id, productId: it.product, productName: it.productName });
                                         setReviewForm({ rating: 0, comment: '' });
                                       }}
-                                      className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg text-white"
+                                      className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg text-white cursor-pointer"
                                       style={{ backgroundColor: '#D17842' }}
                                     >
                                       Đánh giá
