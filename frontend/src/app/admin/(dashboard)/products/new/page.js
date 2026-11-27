@@ -98,7 +98,7 @@ export default function NewProductPage() {
         price: form.salePrice || form.originalPrice,
         originalPrice: form.originalPrice,
         stock: 15,
-        image: form.images[0] || '',
+        image: '',
       };
     });
 
@@ -463,6 +463,7 @@ export default function NewProductPage() {
                 <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 uppercase text-[10px] font-bold">
                   <th className="p-3">Màu</th>
                   <th className="p-3">Size</th>
+                  <th className="p-3">Ảnh biến thể (URL)</th>
                   <th className="p-3">Mã SKU Unique</th>
                   <th className="p-3">Giá Bán (₫)</th>
                   <th className="p-3">Tồn Kho</th>
@@ -474,6 +475,15 @@ export default function NewProductPage() {
                   <tr key={i}>
                     <td className="p-3 font-bold text-[#10243A]">{v.color}</td>
                     <td className="p-3 font-bold">{v.size}</td>
+                    <td className="p-3">
+                      <input
+                        type="url"
+                        value={v.image || ''}
+                        onChange={(e) => handleUpdateVariant(i, 'image', e.target.value)}
+                        placeholder={`Ảnh đúng màu ${v.color}`}
+                        className="bg-slate-50 border border-slate-200 text-xs rounded-lg p-1.5 w-56"
+                      />
+                    </td>
                     <td className="p-3">
                       <input
                         type="text"

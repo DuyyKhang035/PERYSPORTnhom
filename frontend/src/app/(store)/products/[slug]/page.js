@@ -41,16 +41,15 @@ export default function ProductDetailPage({ params }) {
           const prod = data.data;
           setProduct(prod);
 
-          if (prod.images && prod.images.length > 0) {
-            setSelectedImage(prod.images[0]);
-          }
-
           if (prod.variants && prod.variants.length > 0) {
             // Find first available variant
             const firstAvailable = prod.variants.find((v) => v.stock > 0) || prod.variants[0];
             setSelectedColor(firstAvailable.color);
             setSelectedSize(String(firstAvailable.size));
-            if (firstAvailable.image) setSelectedImage(firstAvailable.image);
+            const firstColorImage = prod.variants.find(
+              (v) => v.color === firstAvailable.color && v.image
+            )?.image;
+            setSelectedImage(firstAvailable.image || firstAvailable.images?.[0] || firstColorImage || '');
           }
 
           // Load related products from same brand or category
@@ -112,16 +111,46 @@ export default function ProductDetailPage({ params }) {
 
   const currentStock = currentVariant ? currentVariant.stock : 0;
   const isOutOfStock = currentStock === 0;
+  const selectedColorImages = Array.from(new Set(
+    product.variants
+      .filter((variant) => variant.color === selectedColor)
+      .flatMap((variant) => [variant.image, ...(variant.images || [])])
+      .filter(Boolean)
+  ));
 
   const handleColorChange = (colorName) => {
+    const colorVariants = product.variants.filter((variant) => variant.color === colorName);
+    const matchingVariant = colorVariants.find(
+      (variant) => String(variant.size) === String(selectedSize) && variant.stock > 0
+    ) || colorVariants.find((variant) => variant.stock > 0) || colorVariants[0];
+
     setSelectedColor(colorName);
     setErrorMsg('');
-    // Switch image if variant has custom image
-    const matchingVariant = product.variants.find((v) => v.color === colorName && String(v.size) === selectedSize) ||
-                           product.variants.find((v) => v.color === colorName);
-    if (matchingVariant && matchingVariant.image) {
-      setSelectedImage(matchingVariant.image);
+    if (matchingVariant) {
+      setSelectedSize(String(matchingVariant.size));
+      setSelectedImage(
+        matchingVariant.image ||
+        matchingVariant.images?.[0] ||
+        colorVariants.find((variant) => variant.image)?.image ||
+        colorVariants.find((variant) => variant.images?.length)?.images[0] ||
+        ''
+      );
     }
+  };
+
+  const handleSizeChange = (size) => {
+    setSelectedSize(size);
+    setErrorMsg('');
+    const matchingVariant = product.variants.find(
+      (variant) => variant.color === selectedColor && String(variant.size) === size
+    );
+    setSelectedImage(
+      matchingVariant?.image ||
+      matchingVariant?.images?.[0] ||
+      product.variants.find((variant) => variant.color === selectedColor && variant.image)?.image ||
+      product.variants.find((variant) => variant.color === selectedColor && variant.images?.length)?.images[0] ||
+      ''
+    );
   };
 
   const handleAddToCart = async (isBuyNow = false) => {
@@ -177,11 +206,17 @@ export default function ProductDetailPage({ params }) {
           {/* Gallery Area */}
           <div className="lg:col-span-7 space-y-4">
             <div className="aspect-4/3 bg-[#F5F7FA] rounded-3xl overflow-hidden border border-slate-100 shadow-sm relative">
-              <img
-                src={selectedImage || product.images?.[0]}
-                alt={product.name}
-                className="w-full h-full object-cover object-center"
-              />
+              {selectedImage ? (
+                <img
+                  src={selectedImage}
+                  alt={`${product.name} - ${selectedColor}`}
+                  className="w-full h-full object-contain object-center"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center px-6 text-center text-sm font-semibold text-slate-500">
+                  Ảnh màu {selectedColor || 'này'} chưa được cập nhật.
+                </div>
+              )}
               {product.discountPercentage > 0 && (
                 <span className="absolute top-4 left-4 bg-[#F97316] text-white text-xs font-black px-3 py-1 rounded-full shadow-md">
                   GIẢM {product.discountPercentage}%
@@ -190,20 +225,25 @@ export default function ProductDetailPage({ params }) {
             </div>
 
             {/* Thumbnails */}
-            {product.images && product.images.length > 1 && (
+            {selectedColorImages.length > 0 && (
               <div className="flex gap-3 overflow-x-auto pb-2">
-                {product.images.map((img, idx) => (
+                {selectedColorImages.map((img, idx) => (
                   <button
-                    key={idx}
+                    key={`${selectedColor}-${img}`}
                     onClick={() => setSelectedImage(img)}
                     className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all shrink-0 ${
                       selectedImage === img ? 'border-[#F97316] shadow-md scale-95' : 'border-slate-200 opacity-70 hover:opacity-100'
                     }`}
                   >
-                    <img src={img} alt={`Thumb ${idx}`} className="w-full h-full object-cover" />
+                    <img src={img} alt={`${selectedColor} - ảnh ${idx + 1}`} className="w-full h-full object-contain" />
                   </button>
                 ))}
               </div>
+            )}
+            {selectedColorImages.length === 0 && (
+              <p className="text-xs text-amber-700">
+                Chưa có ảnh được gán cho màu {selectedColor}. Vui lòng bổ sung ảnh đúng màu trong quản trị sản phẩm.
+              </p>
             )}
           </div>
 
@@ -257,18 +297,25 @@ export default function ProductDetailPage({ params }) {
               <div className="flex flex-wrap gap-2">
                 {colorsList.map((colorName) => {
                   const isSelected = selectedColor === colorName;
+                  const matchingVar = product.variants?.find((v) => v.color === colorName);
                   return (
                     <button
                       key={colorName}
                       onClick={() => handleColorChange(colorName)}
-                      className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all flex items-center gap-1.5 ${
+                      className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all flex items-center gap-2 ${
                         isSelected
                           ? 'border-[#10243A] bg-[#10243A] text-white shadow-md'
                           : 'border-slate-200 bg-white text-slate-700 hover:border-slate-400'
                       }`}
                     >
+                      {matchingVar?.colorCode && (
+                        <span
+                          className="w-3 h-3 rounded-full border border-black/10 shrink-0 shadow-xs"
+                          style={{ backgroundColor: matchingVar.colorCode }}
+                        />
+                      )}
                       {isSelected && <Check className="w-3.5 h-3.5 text-[#F97316]" />}
-                      {colorName}
+                      <span>{colorName}</span>
                     </button>
                   );
                 })}
@@ -297,7 +344,7 @@ export default function ProductDetailPage({ params }) {
                     <button
                       key={sizeVal}
                       disabled={!isAvailable}
-                      onClick={() => { setSelectedSize(sizeVal); setErrorMsg(''); }}
+                      onClick={() => handleSizeChange(sizeVal)}
                       className={`py-2.5 text-xs font-bold rounded-xl border transition-all ${
                         isSelected
                           ? 'border-[#F97316] bg-[#F97316] text-white shadow-md'
